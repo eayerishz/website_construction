@@ -73,8 +73,8 @@ Ensure you have Python and Django installed.
 
 1. **Clone the repository:**
    ```bash
-   git clone <https://github.com/eayerishz/constructionwebsite.git>
-   cd <construction_project>
+   git clone <https://github.com/eayerishz/website_construction.git>
+   cd <website_construction>
 
 2. **Install Dependencies:**
    ```bash
@@ -91,7 +91,10 @@ Ensure you have Python and Django installed.
 5. **Create a Superuser:**
    ```bash
    python manage.py createsuperuser
-
+   admin account:
+   username: banana
+   password: saging10
+   
 6. **Start the Development Server:**
    ```bash
    python manage.py runserver
