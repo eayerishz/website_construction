@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-import datetime
+from django.utils import timezone
 
 
 class Project(models.Model):
@@ -14,17 +14,45 @@ class Project(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=100)
     location = models.CharField(max_length=100)
-    start_date = models.DateField(default=datetime.date.today)
+    start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="projects")
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="pending", blank=True, null=True
+        max_length=20, choices=STATUS_CHOICES, default="Pending", blank=True, null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    approved_by_user = models.BooleanField(default=False)
+    approved_by_admin = models.ForeignKey(
+        User, null=True, blank=True, related_name="approved_projects", on_delete=models.SET_NULL
+    )
+    declined_by_admin = models.ForeignKey(
+        User, null=True, blank=True, related_name="declined_projects", on_delete=models.SET_NULL
+    )
+    declined_by_user = models.BooleanField(default=False)
+
     def __str__(self):
         return self.name
+
+    def total_cost(self):
+        return sum(
+            element.materials.aggregate(total=models.Sum('total_cost'))['total']
+            for element in self.elements.all()
+            if element.materials.exists()
+        )
+
+    def approve_project(self, user):
+        self.status = "Approved"
+        self.start_date = timezone.now()
+        self.approved_by_user = True
+        self.approved_by_admin = user
+        self.save()
+
+    def complete_project(self):
+        self.status = "Completed"
+        self.end_date = timezone.now()
+        self.save()
 
 
 class ProjectElement(models.Model):
@@ -32,8 +60,8 @@ class ProjectElement(models.Model):
         Project, on_delete=models.CASCADE, related_name="elements"
     )
     name = models.CharField(max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)  # Changed to snake_case
-    updated_at = models.DateTimeField(auto_now=True)  # Changed to snake_case
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Element of {self.project.name}"
@@ -55,3 +83,14 @@ class Material(models.Model):
 
     def __str__(self):
         return self.name
+
+class Pricing(models.Model):
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateTimeField(auto_now_add=True)
+    materials = models.ManyToManyField(Material, related_name='pricings')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='pricings')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Pricing for {self.project.name} on {self.date}'
